@@ -1,0 +1,12 @@
+{% raw -%}
+- name: delete vm {{ server.instance }}
+  community.vmware.vmware_guest:
+    hostname: "{{ lookup('env', 'VSPHERE_SERVER') | default('vcenter') }}"
+    username: "{{  lookup('env', 'VSPHERE_USERNAME') }}"
+    password: "{{ lookup('env', 'VSPHERE_PASSWORD') }}"
+    validate_certs: false
+    use_instance_uuid: true
+    state: absent
+    uuid: "{{ server.instance_uuid }}"
+    force: true
+{%- endraw %}

@@ -1,0 +1,13 @@
+---
+{% raw -%}
+- hosts: localhost
+  connection: local
+  vars:
+    servers: "{{ lookup('file', molecule_instance_config, errors='ignore') | from_yaml }}"
+  tasks:
+    - name: run delete task
+      ansible.builtin.include_tasks: destroy_vm.yml
+      loop: "{{ servers | list }}"
+      loop_control:
+        loop_var: server
+{%- endraw %}

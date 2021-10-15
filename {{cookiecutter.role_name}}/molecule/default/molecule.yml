@@ -1,0 +1,19 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: ubuntu2004
+    image: geerlingguy/docker-ubuntu2004-ansible:latest
+    pre_build_image: true
+  - name: almalinux8
+    image: boolman/docker-almalinux8-ansible:8.4-20211006
+    pre_build_image: true
+  - name: centos7
+    image: geerlingguy/docker-centos7-ansible:latest
+    pre_build_image: true
+provisioner:
+  name: ansible
+verifier:
+  name: ansible

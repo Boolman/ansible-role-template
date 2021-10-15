@@ -1,0 +1,87 @@
+{% raw -%}
+- name: Deploy Virtual Machine {{ server.name }} - from template in content library
+  community.vmware.vmware_content_deploy_ovf_template:
+    hostname: "{{ lookup('env', 'VSPHERE_SERVER') | default(molecule_yml.driver.vsphere.server) }}"
+    username: "{{  lookup('env', 'VSPHERE_USERNAME') }}"
+    password: "{{ lookup('env', 'VSPHERE_PASSWORD') }}"
+    validate_certs: false
+    template: "{{ server.template }}"
+    cluster: "{{ molecule_yml.driver.vsphere.cluster }}"
+    folder: "{{ server.folder | default(lookup('env', 'VPSHERE_USERNAME')) }}"
+    datacenter: "{{ molecule_yml.driver.vsphere.datacenter }}"
+    datastore: "{{ molecule_yml.driver.vsphere.datastore }}"
+    name: "{{ server.name }}"
+  register: deploy
+
+- name: Finding UUID of {{ server.name }}
+  community.vmware.vmware_guest_info:
+    hostname: "{{ lookup('env', 'VSPHERE_SERVER') | default(molecule_yml.driver.vsphere.server) }}"
+    username: "{{  lookup('env', 'VSPHERE_USERNAME') }}"
+    password: "{{ lookup('env', 'VSPHERE_PASSWORD') }}"
+    validate_certs: false
+    datacenter: "{{ molecule_yml.driver.vsphere.datacenter }}"
+    moid: "{{ deploy.vm_deploy_info.vm_id }}"
+  register: vmuuid
+
+- name: Customizing vm {{ server.name }}
+  community.vmware.vmware_guest:
+    hostname: "{{ lookup('env', 'VSPHERE_SERVER') | default(molecule_yml.driver.vsphere.server) }}"
+    username: "{{  lookup('env', 'VSPHERE_USERNAME') }}"
+    password: "{{ lookup('env', 'VSPHERE_PASSWORD') }}"
+    validate_certs: false
+    use_instance_uuid: true
+    uuid: "{{ vmuuid.instance.instance_uuid }}"
+    datacenter: "{{ molecule_yml.driver.vsphere.datacenter }}"
+    state: present
+    networks: "{{ server.networks }}"
+    customization:
+      existing_vm: true
+      hostname: "{{ server.name }}"
+    disk: "{{ server.disk }}"
+    wait_for_customization: true
+    wait_for_ip_address: false
+
+- name: Start server {{ server.name }}
+  community.vmware.vmware_guest:
+    hostname: "{{ lookup('env', 'VSPHERE_SERVER') | default(molecule_yml.driver.vsphere.server) }}"
+    username: "{{  lookup('env', 'VSPHERE_USERNAME') }}"
+    password: "{{ lookup('env', 'VSPHERE_PASSWORD') }}"
+    validate_certs: false
+    use_instance_uuid: true
+    uuid: "{{ vmuuid.instance.instance_uuid }}"
+    datacenter: "{{ molecule_yml.driver.vsphere.datacenter }}"
+    state: poweredon
+    wait_for_ip_address: true
+
+- name: Get IP of server {{ server.name }}
+  community.vmware.vmware_guest_tools_info:
+    hostname: "{{ lookup('env', 'VSPHERE_SERVER') | default(molecule_yml.driver.vsphere.server) }}"
+    username: "{{  lookup('env', 'VSPHERE_USERNAME') }}"
+    password: "{{ lookup('env', 'VSPHERE_PASSWORD') }}"
+    validate_certs: false
+    use_instance_uuid: true
+    uuid: "{{ vmuuid.instance.instance_uuid }}"
+    datacenter: "{{ molecule_yml.driver.vsphere.datacenter }}"
+  register: vminfo
+  retries: 5
+  delay: 60
+  until: vminfo.vmtools_info.vm_ipaddress | ansible.netcommon.ipv4
+
+
+- name: set fact  {{ server.name }}
+  ansible.builtin.set_fact:
+    instance_fact:
+        instance: "{{ server.name }}"
+        instance_uuid: "{{ vmuuid.instance.instance_uuid }}"
+        instance_moid: "{{ deploy.vm_deploy_info.vm_id }}"
+        address: "{{ vminfo.vmtools_info.vm_ipaddress | default('')}}"
+        user: "{{ molecule_yml.driver.ssh_user }}"
+        port: "22"
+        identity_file: "{{ molecule_yml.driver.ssh_identity_file }}"
+
+- name: Add fact to file {{ server.name }}
+  ansible.builtin.lineinfile:
+    path: "{{ molecule_yml.driver.cache_dir }}/cache.json"
+    line: "{{ instance_fact | to_json }}"
+    insertafter: EOF
+{%- endraw %}

@@ -1,0 +1,36 @@
+---
+{% raw -%}
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: cleanup
+      ansible.builtin.file:
+        path: "{{ molecule_yml.driver.cache_dir }}/cache.json"
+        state: absent
+    - name: Create cache file
+      ansible.builtin.file:
+        path: "{{ molecule_yml.driver.cache_dir }}/cache.json"
+        state: touch
+
+- hosts: localhost
+  connection: local
+  serial: 1
+  tasks:
+    - ansible.builtin.include_tasks: create_vm.yml
+      loop: "{{ molecule_yml.platforms }}"
+      loop_control:
+        loop_var: server
+
+- hosts: localhost
+  vars:
+    j: "{{ lookup('file', molecule_yml.driver.cache_dir + '/cache.json').splitlines() }}"
+  tasks:
+    - name: Gather and create dict
+      loop: "{{ j }}"
+      ansible.builtin.set_fact:
+        instance_config_dict: "{{ instance_config_dict | default([]) + [ item | from_json ] }}"
+    - name: Dump instance config
+      ansible.builtin.copy:
+        content: "{{ instance_config_dict | to_nice_yaml }}"
+        dest: "{{ molecule_instance_config }}"
+{%- endraw %}

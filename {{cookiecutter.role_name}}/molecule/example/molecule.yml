@@ -1,0 +1,43 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: delegated
+  ssh_identity_file: "/ansible/id_rsa"
+  ssh_user: "ubuntu"
+  cache_dir: $MOLECULE_EPHEMERAL_DIRECTORY
+  vsphere:
+    cluster: cluster01
+    datacenter: dc01
+    datastore: ds01
+    server: vcenter.local
+  options:
+    ansible_connection_options:
+      connection: ssh
+platforms:
+  - name: molecule1
+    template: uubuntu
+    folder: labb/foobar
+    networks:
+      - name: VLAN1
+        device_type: vmxnet3
+        start_connected: true
+    disk:
+      - size_gb: "10"
+        type: thin
+        datastore: Dds01
+    groups:
+      - mygroup01
+provisioner:
+  name: ansible
+  playbooks:
+    create: ../vmware/create.yml
+    destroy: ../vmware.destroy.yml
+  env:
+    ANSIBLE_ROLES_PATH: "../../roles"
+  inventory:
+    group_vars:
+      mygroup01:
+        foo: bar
+verifier:
+  name: ansible

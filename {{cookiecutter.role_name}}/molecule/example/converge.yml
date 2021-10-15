@@ -1,0 +1,9 @@
+---
+{% raw -%}
+- name: Converge
+  hosts: all
+  tasks:
+    - name: "Include test"
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename }}"
+{%- endraw %}
